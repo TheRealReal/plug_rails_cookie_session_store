@@ -11,7 +11,7 @@ defmodule PlugRailsCookieSessionStore.Mixfile do
   end
 
   def application do
-    [applications: [:crypto, :logger]]
+    [applications: [:crypto, :logger, :plug_crypto]]
   end
 
   defp description do
@@ -28,7 +28,10 @@ defmodule PlugRailsCookieSessionStore.Mixfile do
   end
 
   defp deps do
-    [{:plug,    ">= 1.7.0"},
-     {:ex_doc,  ">= 0.0.0", only: :dev}]
+    [
+      {:plug, ">= 1.11.0"},
+      {:plug_crypto, ">= 1.2.0"},
+      {:ex_doc, ">= 0.0.0", only: :dev}
+    ]
   end
 end
