@@ -87,4 +87,14 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptorTest do
     decrypted = ME.authenticate_and_decrypt(encrypted, @right)
     assert decrypted == {:ok, data}
   end
+
+  test "it returns :error when decrypting an invalid message" do
+    encrypted =
+      ME.encrypt_and_authenticate(<<0, "helloworld", 0>>, @large)
+      # make it invalid
+      |> String.replace(~r/[abcdef]/, "x")
+
+    decrypted = ME.authenticate_and_decrypt(encrypted, @right)
+    assert decrypted == :error
+  end
 end
