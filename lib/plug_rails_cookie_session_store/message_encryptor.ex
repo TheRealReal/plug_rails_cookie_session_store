@@ -47,6 +47,7 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptor do
       {:ok, verified} ->
         [encrypted, iv] = String.split(verified, "--") |> Enum.map(&Base.decode64!/1)
         encrypted |> decrypt(cipher, secret, iv) |> unpad_message
+
       :error ->
         :error
     end
@@ -60,6 +61,7 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptor do
     iv = :crypto.strong_rand_bytes(16)
 
     {message, auth_tag} = encrypt_aead(pad_message(message), cipher, secret, iv)
+
     message
     |> Base.encode64()
     |> Kernel.<>("--#{Base.encode64(iv)}")
@@ -71,9 +73,16 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptor do
   """
   def authenticate_and_decrypt(encrypted, secret, cipher \\ :aes_gcm)
       when is_binary(encrypted) and is_binary(secret) do
-    [encrypted, iv, auth_tag] = String.split(encrypted, "--") |> Enum.map(&Base.decode64!/1)
-    result = decrypt_aead(encrypted, cipher, secret, iv, auth_tag)
-    {:ok, result}
+    case String.split(encrypted, "--") |> Enum.map(&Base.decode64/1) do
+      [{:ok, encrypted}, {:ok, iv}, {:ok, auth_tag}] ->
+        case decrypt_aead(encrypted, cipher, secret, iv, auth_tag) do
+          :error -> :error
+          result -> {:ok, result}
+        end
+
+      _ ->
+        :error
+    end
   end
 
   defp encrypt(message, cipher, secret, iv) do
@@ -104,8 +113,10 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptor do
 
   defp unpad_message(msg) do
     padding_size = :binary.last(msg)
+
     if padding_size <= 16 do
       msg_size = byte_size(msg)
+
       if binary_part(msg, msg_size, -padding_size) == :binary.copy(<<padding_size>>, padding_size) do
         {:ok, binary_part(msg, 0, msg_size - padding_size)}
       else

@@ -63,18 +63,20 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptorTest do
     assert decrypted == :error
 
     decrypted = ME.authenticate_and_decrypt(encrypted, @right)
-    assert decrypted == {:ok, data}
+    padding = <<2, 2>>
+    assert decrypted == {:ok, data <> padding}
   end
 
   test "it uses only the first 32 bytes to authenticate and encrypt/decrypt" do
     data = <<0, "helloworld", 0>>
+    padding = <<4, 4, 4, 4>>
     encrypted = ME.encrypt_and_authenticate(<<0, "helloworld", 0>>, @large)
 
     decrypted = ME.authenticate_and_decrypt(encrypted, @large)
-    assert decrypted == {:ok, data}
+    assert decrypted == {:ok, data <> padding}
 
     decrypted = ME.authenticate_and_decrypt(encrypted, @right)
-    assert decrypted == {:ok, data}
+    assert decrypted == {:ok, data <> padding}
 
     decrypted = ME.verify_and_decrypt(encrypted, @right, @right)
     assert decrypted == :error
@@ -82,9 +84,24 @@ defmodule PlugRailsCookieSessionStore.MessageEncryptorTest do
     encrypted = ME.encrypt_and_authenticate(<<0, "helloworld", 0>>, @right)
 
     decrypted = ME.authenticate_and_decrypt(encrypted, @large)
-    assert decrypted == {:ok, data}
+    assert decrypted == {:ok, data <> padding}
 
     decrypted = ME.authenticate_and_decrypt(encrypted, @right)
-    assert decrypted == {:ok, data}
+    assert decrypted == {:ok, data <> padding}
+  end
+
+  test "it returns :error when decrypting an invalid rails 6 message" do
+    encrypted =
+      ME.encrypt_and_authenticate(<<0, "helloworld", 0>>, @large)
+      # make it invalid but still base64 valid
+      |> String.replace(~r/[abcdef]/, "x")
+
+    decrypted = ME.authenticate_and_decrypt(encrypted, @right)
+    assert decrypted == :error
+  end
+
+  test "it returns :error when parts are not valid base64" do
+    decrypted = ME.authenticate_and_decrypt("a--b--c", @right)
+    assert decrypted == :error
   end
 end
